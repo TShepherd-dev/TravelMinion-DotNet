@@ -15,7 +15,7 @@ One traveller's trip, and the aggregate root that owns everything about it — i
 _Avoid_: Trip folder, workspace, project
 
 **Trip Brief**:
-The persisted capture of the clarifying interview — destinations, dates, interests, travel style, and other inputs.
+The persisted capture of the clarifying interview — destinations, dates, interests, travel style, and other inputs. Some captured fields (budget, group size, mobility, dietary, travellers-to-share) are not yet consumed by research or planning; see #4.
 
 **Destination Stop**:
 A single destination within a Trip, carrying its position in the itinerary order, its day count, and an optional transit from the previous stop.

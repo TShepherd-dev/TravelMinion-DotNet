@@ -32,7 +32,7 @@ public class ResearchEngineTests
     public async Task Uses_primary_source_when_available()
     {
         var primary = new FakeResearchSource(new[] { Raw("Tokyo Tower") });
-        var fallback = new FakeResearchSource(new[] { Raw("Fallback Thing", ResearchSourceName.Ddgs) });
+        var fallback = new FakeResearchSource(new[] { Raw("Fallback Thing", ResearchSourceName.DuckDuckGo) });
         var engine = Engine(new FakeResearchEnricher(), new FakeUrlFetcher(), fallback, primary);
 
         var results = await engine.ResearchDestinationAsync("Tokyo", new[] { "food" }, 1);
@@ -45,7 +45,7 @@ public class ResearchEngineTests
     public async Task Falls_back_when_primary_returns_nothing()
     {
         var primary = new FakeResearchSource(Array.Empty<RawResult>());
-        var fallback = new FakeResearchSource(new[] { Raw("Fallback Thing", ResearchSourceName.Ddgs) });
+        var fallback = new FakeResearchSource(new[] { Raw("Fallback Thing", ResearchSourceName.DuckDuckGo) });
         var engine = Engine(new FakeResearchEnricher(), new FakeUrlFetcher(), fallback, primary);
 
         var results = await engine.ResearchDestinationAsync("Tokyo", new[] { "food" }, 1);
@@ -57,7 +57,7 @@ public class ResearchEngineTests
     [Fact]
     public async Task Uses_fallback_when_no_primary_is_configured()
     {
-        var fallback = new FakeResearchSource(new[] { Raw("Only Fallback", ResearchSourceName.Ddgs) });
+        var fallback = new FakeResearchSource(new[] { Raw("Only Fallback", ResearchSourceName.DuckDuckGo) });
         var engine = Engine(new FakeResearchEnricher(), new FakeUrlFetcher(), fallback);
 
         var results = await engine.ResearchDestinationAsync("Tokyo", new[] { "food" }, 1);
@@ -163,17 +163,4 @@ public class ResearchEngineTests
         enricher.Received[0].Content.Should().Be("FULL PAGE CONTENT");
     }
 
-    [Fact]
-    public async Task Research_all_covers_every_destination_in_order()
-    {
-        var primary = new FakeResearchSource(destination => new[] { Raw($"{destination} Spot") });
-        var engine = Engine(new FakeResearchEnricher(), new FakeUrlFetcher(), new FakeResearchSource(Array.Empty<RawResult>()), primary);
-        var brief = Brief(new DestinationStop("Tokyo", 1, order: 0), new DestinationStop("Kyoto", 1, order: 1));
-
-        var results = await engine.ResearchAllAsync(brief);
-
-        results.Should().HaveCount(2);
-        primary.Destinations.Should().Equal("Tokyo", "Kyoto");
-        results.Select(s => s.Destination).Should().Equal("Tokyo", "Kyoto");
-    }
 }

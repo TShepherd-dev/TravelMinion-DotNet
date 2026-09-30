@@ -12,3 +12,7 @@ Trips are relational entities, and this is a cost-sensitive Azure deployment dem
 - Migrations are provider-specific and must be kept per-provider alongside a shared model.
 - The free offer is a billing construct; Terraform's `azurerm_mssql_database` may not expose it, so provisioning may need `azapi` or a one-time portal step (to verify).
 - Serverless auto-pause means cold-start latency; acceptable for a demo, not for sustained traffic.
+
+## Status
+
+The store decision is implemented (EF Core SQL Server provider, SQL Server migrations). The test story is **not** as described above: there is no SQLite provider or migration set, and the repository tests run against SQL Server LocalDB. `Program.cs` still calls `EnsureCreated()` for SQLite, but nothing exercises it. Reconciling this — add SQLite plus per-provider migrations, or drop SQLite and amend this ADR — is tracked in #3.

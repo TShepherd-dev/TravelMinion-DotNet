@@ -181,7 +181,9 @@ else
             _mustDo.Clear();
             _discard.Clear();
             _message = result.Merged is { } merged
-                ? $"Research added {merged.AppendedCount} new suggestion(s); {merged.DuplicateCount} were already on the list."
+                ? merged.AppendedCount == 0
+                    ? $"Nothing new this run - all {merged.DuplicateCount} suggestion(s) were already on your list."
+                    : $"Research added {merged.AppendedCount} new suggestion(s); {merged.DuplicateCount} were already on the list."
                 : $"Research produced {result.Suggestions.Count} suggestion(s).";
         }
         catch (Exception ex)

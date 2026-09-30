@@ -35,7 +35,7 @@ public class DuckDuckGoResearchSourceTests
         results[0].Title.Should().Be("Senso-ji Temple");
         results[0].Url.Should().Be("https://example.com/sensoji");
         results[0].Snippet.Should().Be("An ancient temple in Asakusa.");
-        results[0].SourceName.Should().Be(ResearchSourceName.Ddgs);
+        results[0].SourceName.Should().Be(ResearchSourceName.DuckDuckGo);
         results[1].Title.Should().Be("Kyoto Imperial Palace");
         results[1].Url.Should().Be("https://direct.example.com/kyoto");
         results[1].Snippet.Should().BeNull();

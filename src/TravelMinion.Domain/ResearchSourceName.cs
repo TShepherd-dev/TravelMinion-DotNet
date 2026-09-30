@@ -5,5 +5,5 @@ public enum ResearchSourceName
     Custom,
     Tavily,
     Jina,
-    Ddgs,
+    DuckDuckGo,
 }

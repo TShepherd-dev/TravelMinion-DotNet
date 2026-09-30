@@ -244,6 +244,47 @@ public sealed class TripRepositoryTests
         }
     }
 
+    [Fact]
+    public async Task Discard_flags_round_trip_for_suggestions_and_approved_activities()
+    {
+        await using var context = CreateContext();
+        {
+            var repository = new TripRepository(context);
+
+            var trip = new Trip(Guid.NewGuid(), "Discard round-trip");
+            trip.CaptureBrief(TripBrief.Create(
+                [new DestinationStop("Tokyo", 1)],
+                new DateOnly(2027, 4, 1),
+                new DateOnly(2027, 4, 1),
+                interests: ["food"]));
+
+            var suggestion = new Suggestion(
+                "Ramen Tour",
+                "Tokyo",
+                "Matches your interest in food",
+                "Shibuya",
+                "2 hours");
+            trip.ReplaceSuggestions([suggestion]);
+
+            var activity = ApprovedActivity.FromSuggestion(suggestion, optional: false);
+            trip.SetActivities(new ApprovedActivityList([activity]));
+
+            trip.DiscardSuggestions([0]);
+            trip.Activities.Discard(activity);
+
+            await repository.AddAsync(trip);
+            await repository.SaveChangesAsync();
+            context.ChangeTracker.Clear();
+
+            var loaded = await repository.GetAsync(trip.Id);
+
+            loaded!.Suggestions.Should().ContainSingle()
+                .Which.Discarded.Should().BeTrue();
+            loaded.Activities.Activities.Should().ContainSingle()
+                .Which.Discarded.Should().BeTrue();
+        }
+    }
+
     private static ResearchEngine FakeEngine(IReadOnlyList<string> titles)
     {
         var results = titles

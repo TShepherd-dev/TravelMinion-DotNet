@@ -95,4 +95,23 @@ public sealed class TripServiceTests
         renamed.Name.Should().Be("New name");
         repository.SaveCount.Should().Be(2);
     }
+
+    [Fact]
+    public async Task DiscardSuggestionsAsync_marks_selected_suggestions_and_saves()
+    {
+        var repository = new FakeTripRepository();
+        var service = new TripService(repository);
+        var trip = await service.CreateAsync("Japan Spring", Brief());
+        trip.ReplaceSuggestions(new[]
+        {
+            Suggestion("Senso-ji Temple", "Tokyo"),
+            Suggestion("Fushimi Inari", "Kyoto"),
+            Suggestion("Nishiki Market", "Kyoto"),
+        });
+
+        var updated = await service.DiscardSuggestionsAsync(trip.Id, new[] { 0, 2 });
+
+        updated.Suggestions.Select(s => s.Discarded).Should().Equal(true, false, true);
+        repository.SaveCount.Should().Be(2);
+    }
 }

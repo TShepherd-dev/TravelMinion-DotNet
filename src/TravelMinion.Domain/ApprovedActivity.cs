@@ -24,7 +24,8 @@ public sealed class ApprovedActivity
         bool approved = true,
         bool optional = true,
         ActivityOrigin origin = ActivityOrigin.Manual,
-        string? indoorFallback = null)
+        string? indoorFallback = null,
+        bool discarded = false)
     {
         if (string.IsNullOrWhiteSpace(name))
         {
@@ -53,6 +54,7 @@ public sealed class ApprovedActivity
         Optional = optional;
         Origin = origin;
         IndoorFallback = indoorFallback;
+        Discarded = discarded;
     }
 
     public string Name { get; }

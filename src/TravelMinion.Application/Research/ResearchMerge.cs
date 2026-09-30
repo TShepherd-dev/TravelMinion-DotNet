@@ -3,8 +3,9 @@ using TravelMinion.Domain;
 namespace TravelMinion.Application;
 
 /// <summary>
-/// The selection of a Research Job's output to persist: the candidates to write
-/// back plus how many of the Trip's existing Suggestions they duplicate.
+/// The outcome of merging a Research Job's output into a Trip: the mode used, the
+/// Trip's resulting Suggestions, and how many candidates were appended versus
+/// recognised as duplicates.
 /// </summary>
 public sealed record ResearchMergeResult(
     ResearchMergeMode Mode,
@@ -23,14 +24,15 @@ public enum ResearchMergeMode
 }
 
 /// <summary>
-/// Merges a Research Job's output into a Trip's Suggestions. With
+/// Applies a Research Job's output to a Trip's Suggestions. With
 /// <see cref="ResearchMergeMode.Append"/> the list grows and the Trip's existing
-/// Suggestions are returned unchanged (already-discarded candidates are excluded
-/// by the Trip), so approvals and discards are never lost.
+/// Suggestions are kept - including discarded ones, which still count as present
+/// so research never resurrects them - so approvals and discards are never lost.
+/// De-duplication lives in <see cref="Trip.AppendSuggestions"/>.
 /// </summary>
 public static class ResearchMerge
 {
-    public static ResearchMergeResult Combine(
+    public static ResearchMergeResult Apply(
         Trip trip,
         IReadOnlyList<Suggestion> researched,
         ResearchMergeMode mode)
@@ -40,35 +42,17 @@ public static class ResearchMerge
 
         if (mode == ResearchMergeMode.Replace)
         {
-            return new ResearchMergeResult(ResearchMergeMode.Replace, researched, researched.Count, 0);
+            trip.ReplaceSuggestions(researched);
+            return new ResearchMergeResult(ResearchMergeMode.Replace, trip.Suggestions, researched.Count, 0);
         }
 
-        var existing = new HashSet<(string Name, string Destination)>(
-            trip.Suggestions.Select(s => (s.Name.ToLowerInvariant(), s.Destination.ToLowerInvariant())));
+        var appended = trip.AppendSuggestions(researched);
+        var candidates = researched.Count(suggestion => suggestion is not null);
 
-        var appended = new List<Suggestion>();
-        var duplicateCount = 0;
-        var seen = new HashSet<(string Name, string Destination)>(existing);
-        foreach (var suggestion in researched)
-        {
-            if (suggestion is null)
-            {
-                continue;
-            }
-
-            var key = (suggestion.Name.ToLowerInvariant(), suggestion.Destination.ToLowerInvariant());
-            if (!seen.Add(key))
-            {
-                duplicateCount++;
-                continue;
-            }
-
-            appended.Add(suggestion);
-        }
-
-        var merged = new List<Suggestion>(trip.Suggestions);
-        merged.AddRange(appended);
-
-        return new ResearchMergeResult(ResearchMergeMode.Append, merged, appended.Count, duplicateCount);
+        return new ResearchMergeResult(
+            ResearchMergeMode.Append,
+            trip.Suggestions,
+            appended.Count,
+            candidates - appended.Count);
     }
 }

@@ -75,7 +75,7 @@ public sealed partial class DuckDuckGoResearchSource : IResearchSource
 
             var url = NormalizeUrl(match.Groups["href"].Value);
             var snippet = index < snippets.Count ? snippets[index] : null;
-            results.Add(new RawResult(title, url, snippet, ResearchSourceName.Ddgs));
+            results.Add(new RawResult(title, url, snippet, ResearchSourceName.DuckDuckGo));
             index++;
         }
 

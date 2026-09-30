@@ -30,29 +30,6 @@ public sealed class ResearchEngine
         _primary = primary;
     }
 
-    /// <summary>Research every destination in a Trip Brief.</summary>
-    public async Task<IReadOnlyList<Suggestion>> ResearchAllAsync(
-        TripBrief tripBrief,
-        CancellationToken cancellationToken = default)
-    {
-        ArgumentNullException.ThrowIfNull(tripBrief);
-
-        var suggestions = new List<Suggestion>();
-        foreach (var stop in tripBrief.Destinations)
-        {
-            var found = await ResearchDestinationAsync(
-                stop.Destination,
-                tripBrief.Interests,
-                stop.Days,
-                tripBrief.PreferredSources,
-                cancellationToken).ConfigureAwait(false);
-
-            suggestions.AddRange(found);
-        }
-
-        return suggestions;
-    }
-
     /// <summary>Research a single destination.</summary>
     public async Task<IReadOnlyList<Suggestion>> ResearchDestinationAsync(
         string destination,

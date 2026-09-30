@@ -4,7 +4,8 @@ namespace TravelMinion.Application;
 
 /// <summary>
 /// Production <see cref="IResearchRunner"/>: queues a Research Job on the Trip,
-/// runs the Research Step, replaces the Trip's Suggestions, and saves.
+/// runs the Research Step, merges the produced Suggestions into the Trip
+/// (appending by default, so existing Suggestions and approvals survive), and saves.
 /// </summary>
 public sealed class ResearchRunner : IResearchRunner
 {
@@ -37,15 +38,7 @@ public sealed class ResearchRunner : IResearchRunner
         var job = trip.QueueResearch(_clock());
         var result = await _researchService.RunAsync(job, brief, cancellationToken).ConfigureAwait(false);
 
-        var merge = ResearchMerge.Combine(trip, result.Suggestions, _mergeMode);
-        if (_mergeMode == ResearchMergeMode.Replace)
-        {
-            trip.ReplaceSuggestions(merge.Suggestions);
-        }
-        else
-        {
-            trip.AppendSuggestions(merge.Suggestions.Skip(trip.Suggestions.Count));
-        }
+        var merge = ResearchMerge.Apply(trip, result.Suggestions, _mergeMode);
 
         _repository.Update(trip);
         await _repository.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
