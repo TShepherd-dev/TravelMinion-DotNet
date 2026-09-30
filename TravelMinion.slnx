@@ -1,0 +1,7 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/TravelMinion.Api/TravelMinion.Api.csproj" />
+    <Project Path="src/TravelMinion.Core/TravelMinion.Core.csproj" />
+    <Project Path="src/TravelMinion.Infrastructure/TravelMinion.Infrastructure.csproj" />
+  </Folder>
+</Solution>
