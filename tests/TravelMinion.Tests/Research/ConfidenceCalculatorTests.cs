@@ -9,7 +9,7 @@ public class ConfidenceCalculatorTests
     [Fact]
     public void All_fields_present_is_high()
     {
-        var enrichment = new SuggestionEnrichment("r", "a", "d", "9am-5pm", "Free");
+        var enrichment = new SuggestionEnrichment("n", "r", "a", "d", "9am-5pm", "Free");
 
         var (confidence, couldntVerify) = ConfidenceCalculator.Calculate(enrichment, "https://example.com");
 
@@ -20,7 +20,7 @@ public class ConfidenceCalculatorTests
     [Fact]
     public void Missing_pricing_is_medium()
     {
-        var enrichment = new SuggestionEnrichment("r", "a", "d", "9am-5pm", null);
+        var enrichment = new SuggestionEnrichment("n", "r", "a", "d", "9am-5pm", null);
 
         var (confidence, couldntVerify) = ConfidenceCalculator.Calculate(enrichment, "https://example.com");
 
@@ -31,7 +31,7 @@ public class ConfidenceCalculatorTests
     [Fact]
     public void Missing_source_link_is_medium()
     {
-        var enrichment = new SuggestionEnrichment("r", "a", "d", "9am-5pm", "Free");
+        var enrichment = new SuggestionEnrichment("n", "r", "a", "d", "9am-5pm", "Free");
 
         var (confidence, couldntVerify) = ConfidenceCalculator.Calculate(enrichment, null);
 
@@ -42,7 +42,7 @@ public class ConfidenceCalculatorTests
     [Fact]
     public void Missing_hours_and_pricing_is_low()
     {
-        var enrichment = new SuggestionEnrichment("r", "a", "d", null, null);
+        var enrichment = new SuggestionEnrichment("n", "r", "a", "d", null, null);
 
         var (confidence, couldntVerify) = ConfidenceCalculator.Calculate(enrichment, "https://example.com");
 
@@ -53,7 +53,7 @@ public class ConfidenceCalculatorTests
     [Fact]
     public void Missing_everything_is_low()
     {
-        var enrichment = new SuggestionEnrichment("r", "a", "d");
+        var enrichment = new SuggestionEnrichment("n", "r", "a", "d");
 
         var (confidence, couldntVerify) = ConfidenceCalculator.Calculate(enrichment, null);
 

@@ -7,7 +7,7 @@ namespace TravelMinion.Tests;
 public class ResearchEngineTests
 {
     private static readonly SuggestionEnrichment FullEnrichment =
-        new("Matches food", "Shibuya", "2 hours", "9am-5pm", "Free", "Year-round");
+        new("Placeholder", "Matches food", "Shibuya", "2 hours", "9am-5pm", "Free", "Year-round");
 
     private static RawResult Raw(
         string title,
@@ -132,7 +132,7 @@ public class ResearchEngineTests
     [Fact]
     public async Task Populates_suggestion_fields_from_enrichment()
     {
-        var enrichment = new SuggestionEnrichment("Matches food", "Shibuya", "3 hours", "10am-6pm", "1000 yen", "Best in spring");
+        var enrichment = new SuggestionEnrichment("Ramen Tour", "Matches food", "Shibuya", "3 hours", "10am-6pm", "1000 yen", "Best in spring");
         var primary = new FakeResearchSource(new[] { Raw("Ramen Tour", ResearchSourceName.Custom, "https://ex/ramen") });
         var engine = Engine(new FakeResearchEnricher(enrichment), new FakeUrlFetcher(), new FakeResearchSource(Array.Empty<RawResult>()), primary);
 
@@ -161,6 +161,50 @@ public class ResearchEngineTests
 
         enricher.Received.Should().ContainSingle();
         enricher.Received[0].Content.Should().Be("FULL PAGE CONTENT");
+    }
+
+    [Fact]
+    public async Task Expands_a_list_page_into_one_suggestion_per_activity()
+    {
+        var enricher = new FakeResearchEnricher(_ => new[]
+        {
+            new SuggestionEnrichment("Senso-ji", "Temple", "Asakusa", "2 hours"),
+            new SuggestionEnrichment("Tokyo Skytree", "Views", "Sumida", "1-2 hours"),
+        });
+        var primary = new FakeResearchSource(new[] { Raw("Top 10 Tokyo Attractions") });
+        var engine = Engine(enricher, new FakeUrlFetcher(), new FakeResearchSource(Array.Empty<RawResult>()), primary);
+
+        var results = await engine.ResearchDestinationAsync("Tokyo", new[] { "history" }, 1);
+
+        results.Select(s => s.Name).Should().Equal("Senso-ji", "Tokyo Skytree");
+        results.Should().OnlyContain(s => s.SourceLink == "https://example.com/x");
+    }
+
+    [Fact]
+    public async Task Deduplicates_activities_by_name_across_pages()
+    {
+        var enricher = new FakeResearchEnricher(_ => new[]
+        {
+            new SuggestionEnrichment("Senso-ji", "Temple", "Asakusa", "2 hours"),
+        });
+        var primary = new FakeResearchSource(new[] { Raw("Guide A"), Raw("Guide B") });
+        var engine = Engine(enricher, new FakeUrlFetcher(), new FakeResearchSource(Array.Empty<RawResult>()), primary);
+
+        var results = await engine.ResearchDestinationAsync("Tokyo", new[] { "history" }, 1);
+
+        results.Should().ContainSingle().Which.Name.Should().Be("Senso-ji");
+    }
+
+    [Fact]
+    public async Task Drops_pages_that_yield_no_activities()
+    {
+        var enricher = new FakeResearchEnricher(_ => Array.Empty<SuggestionEnrichment>());
+        var primary = new FakeResearchSource(new[] { Raw("Best time to visit Tokyo") });
+        var engine = Engine(enricher, new FakeUrlFetcher(), new FakeResearchSource(Array.Empty<RawResult>()), primary);
+
+        var results = await engine.ResearchDestinationAsync("Tokyo", new[] { "history" }, 1);
+
+        results.Should().BeEmpty();
     }
 
 }

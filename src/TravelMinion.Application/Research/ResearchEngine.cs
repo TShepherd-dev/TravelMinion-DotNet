@@ -137,11 +137,12 @@ public sealed class ResearchEngine
         var targetMin = Math.Min(4 * days, 8);
         var targetMax = Math.Min(6 * days, 12);
 
-        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        // Bound the number of pages sent to the LLM; each may yield several activities.
+        var seenTitles = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var unique = new List<RawResult>();
         foreach (var raw in rawResults)
         {
-            if (string.IsNullOrWhiteSpace(raw.Title) || !seen.Add(raw.Title))
+            if (string.IsNullOrWhiteSpace(raw.Title) || !seenTitles.Add(raw.Title))
             {
                 continue;
             }
@@ -153,7 +154,7 @@ public sealed class ResearchEngine
             }
         }
 
-        var enrichments = new SuggestionEnrichment[unique.Count];
+        var enrichments = new IReadOnlyList<SuggestionEnrichment>[unique.Count];
         await Parallel.ForEachAsync(
             Enumerable.Range(0, unique.Count),
             new ParallelOptions { MaxDegreeOfParallelism = MaxConcurrency, CancellationToken = cancellationToken },
@@ -164,10 +165,29 @@ public sealed class ResearchEngine
                     .ConfigureAwait(false);
             }).ConfigureAwait(false);
 
+        // Flatten the per-page extractions and dedupe by activity name, not page title.
+        var seenNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var shaped = new List<(RawResult Raw, SuggestionEnrichment Enrichment)>(unique.Count);
         for (var index = 0; index < unique.Count; index++)
         {
-            shaped.Add((unique[index], enrichments[index]));
+            foreach (var enrichment in enrichments[index] ?? Array.Empty<SuggestionEnrichment>())
+            {
+                if (string.IsNullOrWhiteSpace(enrichment.Name) || !seenNames.Add(enrichment.Name))
+                {
+                    continue;
+                }
+
+                shaped.Add((unique[index], enrichment));
+                if (shaped.Count >= targetMax)
+                {
+                    break;
+                }
+            }
+
+            if (shaped.Count >= targetMax)
+            {
+                break;
+            }
         }
 
         var downgrade = shaped.Count < targetMin;
@@ -181,7 +201,7 @@ public sealed class ResearchEngine
             }
 
             suggestions.Add(new Suggestion(
-                name: raw.Title,
+                name: enrichment.Name,
                 destination: destination,
                 rationale: enrichment.Rationale,
                 area: enrichment.Area,

@@ -51,24 +51,24 @@ internal sealed class FakeUrlFetcher : IUrlFetcher
 
 internal sealed class FakeResearchEnricher : IResearchEnricher
 {
-    private static readonly SuggestionEnrichment DefaultEnrichment =
-        new("Matches your interests", "City-wide", "2 hours", "9am-5pm", "Free");
+    private static readonly SuggestionEnrichment DefaultFields =
+        new("Default", "Matches your interests", "City-wide", "2 hours", "9am-5pm", "Free");
 
-    private readonly Func<RawResult, SuggestionEnrichment> _factory;
+    private readonly Func<RawResult, IReadOnlyList<SuggestionEnrichment>> _factory;
 
     public FakeResearchEnricher(SuggestionEnrichment? enrichment = null)
-        : this(_ => enrichment ?? DefaultEnrichment)
+        : this(raw => new[] { (enrichment ?? DefaultFields) with { Name = raw.Title } })
     {
     }
 
-    public FakeResearchEnricher(Func<RawResult, SuggestionEnrichment> factory)
+    public FakeResearchEnricher(Func<RawResult, IReadOnlyList<SuggestionEnrichment>> factory)
         => _factory = factory;
 
     public int CallCount { get; private set; }
 
     public List<RawResult> Received { get; } = new();
 
-    public Task<SuggestionEnrichment> EnrichAsync(
+    public Task<IReadOnlyList<SuggestionEnrichment>> EnrichAsync(
         RawResult raw,
         IReadOnlyList<string> interests,
         string destination,
