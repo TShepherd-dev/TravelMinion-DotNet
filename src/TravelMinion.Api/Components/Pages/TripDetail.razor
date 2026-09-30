@@ -1,0 +1,246 @@
+@page "/trips/{Id:guid}"
+@inject TripService Trips
+@inject IResearchRunner Research
+
+<h1>@(_trip?.Name ?? "Trip")</h1>
+
+@if (_trip is null)
+{
+    <p class="muted">Loading...</p>
+}
+else
+{
+    @if (_trip.Brief is { } brief)
+    {
+        <p class="muted">
+            @brief.StartDate.ToString("yyyy-MM-dd") to @brief.EndDate.ToString("yyyy-MM-dd") ·
+            @brief.TravelStyle ·
+            @string.Join(", ", brief.Interests)
+        </p>
+        <p>
+            @foreach (var stop in brief.Destinations)
+            {
+                <span class="tag">
+                    @stop.Destination · @stop.Days day(s)@(stop.TransitFromPrevious is null ? "" : $" · from prev: {stop.TransitFromPrevious}")
+                </span>
+            }
+        </p>
+    }
+
+    <p>
+        <button @onclick="RunResearchAsync" disabled="@(!Research.IsAvailable || _busy)">
+            @(_busy ? "Working..." : "Run research")
+        </button>
+        @if (!Research.IsAvailable)
+        {
+            <span class="muted">No LLM profile configured (set Llm:ApiKey to enable research).</span>
+        }
+    </p>
+
+    @if (_message is not null)
+    {
+        <p><strong>@_message</strong></p>
+    }
+    @if (_error is not null)
+    {
+        <p class="error">@_error</p>
+    }
+
+    @if (_trip.Suggestions.Count(IsVisible) == 0)
+    {
+        <p class="muted">No suggestions yet. Run research to populate them.</p>
+    }
+    else
+    {
+        <h2>Suggestions (@_selected.Count selected)</h2>
+        <p class="muted">Tick <em>Approve</em> to include a suggestion; tick <em>Must-do</em> to schedule it before fillers. Tick <em>Discard</em> to remove it from the list permanently.</p>
+
+        @foreach (var group in _trip.Suggestions
+            .Select((suggestion, index) => (suggestion, index))
+            .Where(item => IsVisible(item.suggestion))
+            .GroupBy(item => item.suggestion.Destination))
+        {
+            <h3>@group.Key</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Approve</th>
+                        <th>Must-do</th>
+                        <th>Discard</th>
+                        <th>Name</th>
+                        <th>Area</th>
+                        <th>Duration</th>
+                        <th>Cost</th>
+                        <th>Confidence</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var (suggestion, index) in group)
+                    {
+                        <tr>
+                            <td><input type="checkbox" checked="@_selected.Contains(index)" @onchange="args => Toggle(_selected, index, args)" /></td>
+                            <td><input type="checkbox" checked="@_mustDo.Contains(index)" @onchange="args => Toggle(_mustDo, index, args)" /></td>
+                            <td><input type="checkbox" checked="@_discard.Contains(index)" @onchange="args => Toggle(_discard, index, args)" /></td>
+                            <td>
+                                @suggestion.Name
+                                @if (suggestion.Rationale is not null)
+                                {
+                                    <div class="muted">@suggestion.Rationale</div>
+                                }
+                                @if (suggestion.SourceLink is not null)
+                                {
+                                    <div class="muted"><a href="@suggestion.SourceLink" target="_blank">source</a></div>
+                                }
+                            </td>
+                            <td>@suggestion.Area</td>
+                            <td>@suggestion.TypicalDuration</td>
+                            <td>@(suggestion.ApproximateCost ?? "-")</td>
+                            <td>@suggestion.Confidence</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        }
+
+        <button @onclick="SaveApprovalsAsync" disabled="@_busy">
+            Save @_selected.Count approved (@_mustDo.Count must-do)
+        </button>
+
+        @if (_discard.Count > 0)
+        {
+            <button @onclick="DiscardSelectedAsync" disabled="@_busy">
+                Discard @_discard.Count suggestion(s)
+            </button>
+        }
+
+        @if (_trip.Activities.Activities.Count > 0)
+        {
+            <p class="muted">Approved Activity List currently holds @_trip.Activities.Activities.Count item(s).</p>
+        }
+    }
+}
+
+@code {
+    [Parameter]
+    public Guid Id { get; set; }
+
+    private Trip? _trip;
+    private readonly HashSet<int> _selected = new();
+    private readonly HashSet<int> _mustDo = new();
+    private readonly HashSet<int> _discard = new();
+    private bool _busy;
+    private string? _message;
+    private string? _error;
+
+    private static bool IsVisible(Suggestion suggestion) => !suggestion.Discarded;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        _trip = await Trips.GetAsync(Id);
+        _selected.Clear();
+        _mustDo.Clear();
+        _discard.Clear();
+
+        if (_trip is not null)
+        {
+            for (var index = 0; index < _trip.Activities.Activities.Count && index < _trip.Suggestions.Count; index++)
+            {
+                _selected.Add(index);
+            }
+        }
+    }
+
+    private static void Toggle(HashSet<int> set, int index, ChangeEventArgs args)
+    {
+        if (args.Value is true)
+        {
+            set.Add(index);
+        }
+        else
+        {
+            set.Remove(index);
+        }
+    }
+
+    private async Task RunResearchAsync()
+    {
+        if (_trip is null)
+        {
+            return;
+        }
+
+        _busy = true;
+        _error = null;
+        _message = "Researching live - querying travel sources and the model. This can take a few minutes per destination.";
+
+        try
+        {
+            var result = await Research.RunAsync(_trip);
+            _trip = await Trips.GetAsync(Id);
+            _selected.Clear();
+            _mustDo.Clear();
+            _discard.Clear();
+            _message = result.Merged is { } merged
+                ? $"Research added {merged.AppendedCount} new suggestion(s); {merged.DuplicateCount} were already on the list."
+                : $"Research produced {result.Suggestions.Count} suggestion(s).";
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    private async Task DiscardSelectedAsync()
+    {
+        if (_trip is null || _discard.Count == 0)
+        {
+            return;
+        }
+
+        _busy = true;
+        _error = null;
+        _message = null;
+
+        try
+        {
+            _trip = await Trips.DiscardSuggestionsAsync(Id, _discard.ToArray());
+            _selected.Clear();
+            _mustDo.Clear();
+            _discard.Clear();
+            _message = "Discarded suggestions were removed from the list.";
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    private async Task SaveApprovalsAsync()
+    {
+        _busy = true;
+        _error = null;
+        _message = null;
+
+        try
+        {
+            _trip = await Trips.ApproveActivitiesAsync(Id, _selected.ToArray(), _mustDo.ToArray());
+            _message = $"Saved {_trip.Activities.Activities.Count} approved activity(ies).";
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+}

@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Using Include="Xunit" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
+    <PackageReference Include="xunit" Version="2.9.3" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="3.1.5" />
+    <PackageReference Include="FluentAssertions" Version="7.2.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\TravelMinion.Domain\TravelMinion.Domain.csproj" />
+    <ProjectReference Include="..\..\src\TravelMinion.Application\TravelMinion.Application.csproj" />
+    <ProjectReference Include="..\..\src\TravelMinion.Infrastructure\TravelMinion.Infrastructure.csproj" />
+  </ItemGroup>
+
+</Project>

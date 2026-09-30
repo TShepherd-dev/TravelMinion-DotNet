@@ -1,12 +1,55 @@
+using System.Text.Json.Serialization;
+using Microsoft.EntityFrameworkCore;
+using TravelMinion.Application;
+using TravelMinion.Domain;
+using TravelMinion.Infrastructure;
+using TravelMinion.Infrastructure.Persistence;
+using TravelMinion.Api.Components;
+
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container.
-// Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
+builder.Services.ConfigureHttpJsonOptions(options =>
+    options.SerializerOptions.Converters.Add(new JsonStringEnumConverter()));
+
 builder.Services.AddOpenApi();
+builder.Services.AddRazorComponents()
+    .AddInteractiveServerComponents();
+builder.Services.AddTravelMinionResearch(builder.Configuration);
+builder.Services.AddTravelMinionPersistence(builder.Configuration);
+
+var llmProfile = LlmProfileFactory.FromConfiguration(builder.Configuration);
+if (llmProfile is not null)
+{
+    builder.Services.AddTravelMinionLlm(llmProfile);
+}
+
+builder.Services.AddScoped(sp => new ResearchService(sp.GetRequiredService<ResearchEngine>()));
+builder.Services.AddScoped<TripService>();
+
+if (llmProfile is not null)
+{
+    builder.Services.AddScoped<IResearchRunner, ResearchRunner>();
+}
+else
+{
+    builder.Services.AddScoped<IResearchRunner, UnavailableResearchRunner>();
+}
 
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
+using (var scope = app.Services.CreateScope())
+{
+    var database = scope.ServiceProvider.GetRequiredService<TravelMinionDbContext>();
+    if (database.Database.IsSqlite())
+    {
+        database.Database.EnsureCreated();
+    }
+    else
+    {
+        database.Database.Migrate();
+    }
+}
+
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
@@ -14,28 +57,69 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
-var summaries = new[]
-{
-    "Freezing", "Bracing", "Chilly", "Cool", "Mild", "Warm", "Balmy", "Hot", "Sweltering", "Scorching"
-};
+app.MapGet("/health", () => Results.Ok(new { name = "TravelMinion", status = "ok" }))
+    .WithName("GetStatus");
 
-app.MapGet("/weatherforecast", () =>
+app.MapGet("/llm-profiles", () =>
 {
-    var forecast =  Enumerable.Range(1, 5).Select(index =>
-        new WeatherForecast
-        (
-            DateOnly.FromDateTime(DateTime.Now.AddDays(index)),
-            Random.Shared.Next(-20, 55),
-            summaries[Random.Shared.Next(summaries.Length)]
-        ))
-        .ToArray();
-    return forecast;
+    if (llmProfile is null)
+    {
+        return Results.Ok(Array.Empty<object>());
+    }
+
+    var profile = llmProfile;
+    return Results.Ok(new[]
+    {
+        new { profile.Name, profile.Provider, profile.ModelId },
+    });
 })
-.WithName("GetWeatherForecast");
+.WithName("ListLlmProfiles");
+
+if (app.Environment.IsDevelopment())
+{
+    if (llmProfile is not null)
+    {
+        // Development-only: runs the Research Step synchronously against the live
+        // Tavily + LLM providers so the integration can be smoked end to end.
+        app.MapPost("/dev/research-smoke", async (
+            ResearchSmokeRequest request,
+            ResearchService research,
+            CancellationToken cancellationToken) =>
+        {
+            var brief = TripBrief.Create(
+                new[] { new DestinationStop(request.Destination, request.Days) },
+                request.StartDate,
+                request.StartDate.AddDays(request.Days - 1),
+                interests: request.Interests);
+
+            var job = ResearchJob.Queue(Guid.NewGuid(), DateTimeOffset.UtcNow);
+            var result = await research.RunAsync(job, brief, cancellationToken);
+
+            return Results.Ok(result.Suggestions);
+        })
+        .WithName("ResearchSmoke");
+    }
+    else
+    {
+        app.MapPost("/dev/research-smoke", () => Results.Problem(
+            detail: "No LLM profile is configured. Set Llm:ApiKey (user-secrets) to enable research.",
+            statusCode: StatusCodes.Status503ServiceUnavailable))
+        .WithName("ResearchSmokeUnavailable");
+    }
+}
+
+app.UseAntiforgery();
+
+app.MapStaticAssets();
+
+app.MapRazorComponents<App>()
+    .AddInteractiveServerRenderMode();
 
 app.Run();
 
-record WeatherForecast(DateOnly Date, int TemperatureC, string? Summary)
-{
-    public int TemperatureF => 32 + (int)(TemperatureC / 0.5556);
-}
+/// <summary>Request body for the development-only research smoke endpoint.</summary>
+public sealed record ResearchSmokeRequest(
+    string Destination,
+    int Days,
+    DateOnly StartDate,
+    IReadOnlyList<string>? Interests = null);

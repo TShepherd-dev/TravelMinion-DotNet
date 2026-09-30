@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>TravelMinion</title>
+    <base href="/" />
+    <HeadOutlet @rendermode="InteractiveServer" />
+    <style>
+        body { font-family: system-ui, sans-serif; margin: 0; color: #1b1b1b; }
+        header { background: #123a5c; color: #fff; padding: 0.75rem 1.5rem; }
+        header a { color: #fff; text-decoration: none; font-weight: 600; }
+        main { max-width: 60rem; margin: 0 auto; padding: 1.5rem; }
+        table { border-collapse: collapse; width: 100%; }
+        th, td { text-align: left; border-bottom: 1px solid #ddd; padding: 0.4rem 0.5rem; vertical-align: top; }
+        .muted { color: #666; font-size: 0.9rem; }
+        .tag { display: inline-block; background: #eef3f8; border-radius: 0.25rem; padding: 0 0.35rem; margin: 0 0.25rem 0.25rem 0; font-size: 0.8rem; }
+        fieldset { border: 1px solid #ddd; margin-bottom: 1rem; padding: 1rem; }
+        label { display: block; margin: 0.35rem 0 0.15rem; font-weight: 600; }
+        input, select { padding: 0.3rem; width: 100%; box-sizing: border-box; }
+        button { padding: 0.4rem 0.9rem; margin-top: 0.5rem; cursor: pointer; }
+        .row { display: flex; gap: 1rem; }
+        .row > * { flex: 1; }
+        .error { color: #b00020; }
+    </style>
+</head>
+
+<body>
+    <Routes @rendermode="InteractiveServer" />
+    <script src="_framework/blazor.web.js"></script>
+</body>
+
+</html>

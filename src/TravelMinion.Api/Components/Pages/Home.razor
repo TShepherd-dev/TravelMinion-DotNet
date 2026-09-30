@@ -1,0 +1,138 @@
+@page "/"
+@inject TripService Trips
+@inject NavigationManager Navigation
+
+<h1>Trips</h1>
+
+@if (_loading)
+{
+    <p class="muted">Loading...</p>
+}
+else if (_trips.Count == 0)
+{
+    <p class="muted">No trips yet. Create one below.</p>
+}
+else
+{
+    <table>
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>Dates</th>
+                <th>Destinations</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var trip in _trips)
+            {
+                <tr>
+                    <td><a href="@($"/trips/{trip.Id}")">@trip.Name</a></td>
+                    <td>@(trip.Brief is null ? "-" : $"{trip.Brief.StartDate:yyyy-MM-dd} to {trip.Brief.EndDate:yyyy-MM-dd}")</td>
+                    <td>
+                        @if (trip.Brief is null)
+                        {
+                            <span>-</span>
+                        }
+                        else
+                        {
+                            @foreach (var stop in trip.Brief.Destinations)
+                            {
+                                <span class="tag">@stop.Destination (@stop.Days d)</span>
+                            }
+                        }
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+<h2>New trip</h2>
+<fieldset>
+    <label>Name</label>
+    <input @bind="_name" />
+
+    <label>Destinations (comma separated)</label>
+    <input @bind="_destinations" placeholder="Tokyo, Kyoto" />
+
+    <div class="row">
+        <div>
+            <label>Start date</label>
+            <input type="date" @bind="_startDate" />
+        </div>
+        <div>
+            <label>Days</label>
+            <input type="number" min="1" @bind="_days" />
+        </div>
+    </div>
+
+    <label>Interests (comma separated)</label>
+    <input @bind="_interests" placeholder="food, history" />
+
+    <label>Travel style</label>
+    <select @bind="_travelStyle">
+        @foreach (var style in Enum.GetValues<TravelStyle>())
+        {
+            <option value="@style">@style</option>
+        }
+    </select>
+
+    <button @onclick="CreateAsync">Create trip</button>
+    @if (_error is not null)
+    {
+        <p class="error">@_error</p>
+    }
+</fieldset>
+
+@code {
+    private IReadOnlyList<Trip> _trips = Array.Empty<Trip>();
+    private bool _loading = true;
+    private string _name = "My trip";
+    private string _destinations = "Tokyo, Kyoto";
+    private DateOnly _startDate = DateOnly.FromDateTime(DateTime.Today.AddMonths(6));
+    private int _days = 5;
+    private string _interests = "food, history";
+    private TravelStyle _travelStyle = TravelStyle.Casual;
+    private string? _error;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _trips = await Trips.ListAsync();
+        _loading = false;
+    }
+
+    private async Task CreateAsync()
+    {
+        _error = null;
+        try
+        {
+            var stops = _destinations
+                .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                .Select((destination, index) => new DestinationStop(destination, 1, index))
+                .ToArray();
+
+            if (stops.Length == 0)
+            {
+                _error = "Add at least one destination.";
+                return;
+            }
+
+            var interests = _interests
+                .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+
+            var brief = TripBrief.Create(
+                stops,
+                _startDate,
+                _startDate.AddDays(Math.Max(1, _days) - 1),
+                interests: interests,
+                travelStyle: _travelStyle);
+
+            var trip = await Trips.CreateAsync(_name, brief);
+            Navigation.NavigateTo($"/trips/{trip.Id}");
+        }
+        catch (Exception ex) when (ex is DomainException or ArgumentException)
+        {
+            _error = ex.Message;
+        }
+    }
+}

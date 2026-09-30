@@ -1,7 +1,11 @@
 <Solution>
   <Folder Name="/src/">
     <Project Path="src/TravelMinion.Api/TravelMinion.Api.csproj" />
-    <Project Path="src/TravelMinion.Core/TravelMinion.Core.csproj" />
+    <Project Path="src/TravelMinion.Application/TravelMinion.Application.csproj" />
+    <Project Path="src/TravelMinion.Domain/TravelMinion.Domain.csproj" />
     <Project Path="src/TravelMinion.Infrastructure/TravelMinion.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/TravelMinion.Tests/TravelMinion.Tests.csproj" />
   </Folder>
 </Solution>
