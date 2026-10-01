@@ -23,6 +23,12 @@
         .row { display: flex; gap: 1rem; }
         .row > * { flex: 1; }
         .error { color: #b00020; }
+        .progress { display: flex; align-items: center; gap: 0.6rem; margin: 0.75rem 0; }
+        .progress button { margin-top: 0; }
+        .spinner { width: 1rem; height: 1rem; border: 2px solid #cbd6e2; border-top-color: #123a5c; border-radius: 50%; animation: spin 0.8s linear infinite; }
+        @@keyframes spin { to { transform: rotate(360deg); } }
+        .preview { list-style: none; padding-left: 0; }
+        .preview li { border-left: 3px solid #123a5c; background: #f7fafc; padding: 0.25rem 0.6rem; margin-bottom: 0.4rem; }
     </style>
 </head>
 

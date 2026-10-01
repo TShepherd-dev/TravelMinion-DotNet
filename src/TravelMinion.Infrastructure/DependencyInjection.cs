@@ -46,7 +46,8 @@ public static class DependencyInjection
             sp.GetRequiredService<DuckDuckGoResearchSource>(),
             string.IsNullOrWhiteSpace(sp.GetRequiredService<IOptions<TavilyOptions>>().Value.ApiKey)
                 ? null
-                : sp.GetRequiredService<TavilyResearchSource>()));
+                : sp.GetRequiredService<TavilyResearchSource>(),
+            sp.GetService<ResearchProgressReporter>()));
 
         return services;
     }

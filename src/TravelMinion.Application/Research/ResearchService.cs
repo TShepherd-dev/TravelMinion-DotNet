@@ -24,16 +24,23 @@ public sealed class ResearchService
 {
     private readonly ResearchEngine _engine;
     private readonly Func<DateTimeOffset> _clock;
+    private readonly ResearchProgressReporter? _progress;
 
-    public ResearchService(ResearchEngine engine, Func<DateTimeOffset>? clock = null)
+    public ResearchService(
+        ResearchEngine engine,
+        Func<DateTimeOffset>? clock = null,
+        ResearchProgressReporter? progress = null)
     {
         _engine = engine ?? throw new ArgumentNullException(nameof(engine));
         _clock = clock ?? (() => DateTimeOffset.UtcNow);
+        _progress = progress;
     }
 
     /// <summary>
     /// Runs research for every destination in the brief, driving the supplied
     /// job from Queued through Running to Succeeded, or to Failed/Cancelled.
+    /// A cancelled run returns the Suggestions found so far rather than throwing,
+    /// so the caller can keep them; a failed run throws and keeps nothing.
     /// </summary>
     public async Task<ResearchRunResult> RunAsync(
         ResearchJob job,
@@ -44,12 +51,16 @@ public sealed class ResearchService
         ArgumentNullException.ThrowIfNull(brief);
 
         job.Start(_clock());
+        _progress?.Begin(brief.Destinations.Count);
 
         var suggestions = new List<Suggestion>();
         try
         {
-            foreach (var stop in brief.Destinations)
+            for (var index = 0; index < brief.Destinations.Count; index++)
             {
+                var stop = brief.Destinations[index];
+                _progress?.SetDestination(stop.Destination, index + 1);
+
                 var found = await _engine.ResearchDestinationAsync(
                     stop.Destination,
                     brief.Interests,
@@ -59,20 +70,24 @@ public sealed class ResearchService
 
                 job.RecordProgress(stop.Destination, found.Count);
                 suggestions.AddRange(found);
+                _progress?.AddSuggestions(found);
             }
         }
         catch (OperationCanceledException)
         {
             job.Cancel(_clock());
-            throw;
+            _progress?.Finish(ResearchStage.Cancelled);
+            return new ResearchRunResult(job, suggestions);
         }
         catch (Exception ex)
         {
             job.Fail(ex.Message, _clock());
+            _progress?.Finish(ResearchStage.Failed);
             throw;
         }
 
         job.Succeed(_clock());
+        _progress?.Finish(ResearchStage.Completed);
         return new ResearchRunResult(job, suggestions);
     }
 }

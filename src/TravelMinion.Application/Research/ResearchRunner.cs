@@ -41,7 +41,14 @@ public sealed class ResearchRunner : IResearchRunner
         var merge = ResearchMerge.Apply(trip, result.Suggestions, _mergeMode);
 
         _repository.Update(trip);
-        await _repository.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+
+        // A cancelled run still flushes what it found, so its save must not
+        // observe the cancelled token.
+        var saveToken = result.Job.Status == ResearchJobStatus.Cancelled
+            ? CancellationToken.None
+            : cancellationToken;
+
+        await _repository.SaveChangesAsync(saveToken).ConfigureAwait(false);
 
         return result with { Merged = merge };
     }

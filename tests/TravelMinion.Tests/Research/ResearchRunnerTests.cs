@@ -57,6 +57,34 @@ public sealed class ResearchRunnerTests
     }
 
     [Fact]
+    public async Task RunAsync_flushes_partial_results_and_saves_when_cancelled()
+    {
+        var repository = new FakeTripRepository();
+        var trip = new Trip(Guid.NewGuid(), "Japan Spring");
+        trip.CaptureBrief(TripBrief.Create(
+            new[] { new DestinationStop("Tokyo", 1), new DestinationStop("Kyoto", 1) },
+            new DateOnly(2027, 4, 1),
+            new DateOnly(2027, 4, 2),
+            interests: new[] { "food" }));
+
+        var engine = new ResearchEngine(
+            new FakeResearchEnricher(),
+            new FakeUrlFetcher(),
+            new FakeResearchSource(destination => destination == "Tokyo"
+                ? new[] { new RawResult("Attraction", "https://example.com/0", "A snippet", ResearchSourceName.Tavily) }
+                : throw new OperationCanceledException()));
+
+        var runner = new ResearchRunner(new ResearchService(engine, () => Now), repository, clock: () => Now);
+
+        var result = await runner.RunAsync(trip);
+
+        result.Job.Status.Should().Be(ResearchJobStatus.Cancelled);
+        result.Merged!.AppendedCount.Should().Be(1);
+        trip.Suggestions.Should().ContainSingle().Which.Name.Should().Be("Attraction");
+        repository.SaveCount.Should().Be(1);
+    }
+
+    [Fact]
     public async Task RunAsync_throws_when_the_trip_has_no_brief()
     {
         var runner = new ResearchRunner(Service(1), new FakeTripRepository(), clock: () => Now);

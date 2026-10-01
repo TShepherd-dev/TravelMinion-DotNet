@@ -17,18 +17,33 @@ _Avoid_: Trip folder, workspace, project
 **Trip Brief**:
 The persisted capture of the clarifying interview — destinations, dates, interests, travel style, and other inputs. Some captured fields (budget, group size, mobility, dietary, travellers-to-share) are not yet consumed by research or planning; see #4.
 
-**Destination Stop**:
-A single destination within a Trip, carrying its position in the itinerary order, its day count, and an optional transit from the previous stop.
+**Country**:
+A country visited within a Trip, grouping an ordered chain of Bases and carrying the traveller's intended span of time there.
+_Avoid_: Region
+
+**Base**:
+A city or town where the traveller is based (accommodation assumed) and around which activities are done. Carries its position in the trip order, its day count, and an optional transit from the previous Base.
+_Avoid_: Destination Stop, destination, stop
+
+**Arrival** / **Departure**:
+A Trip's endpoints: the Base where the traveller first arrives and the Base they finally depart from, each with a date and time. The trip's start and end dates are derived from these.
 
 **Research Step**:
 The phase that turns a Trip Brief into Suggestions by live web research.
 
 **Research Job**:
-A single execution of the Research Step for a Trip. Runs asynchronously and produces the Trip's Suggestions.
+A single execution of the Research Step for a Trip. Produces the Trip's Suggestions. A Job that is Cancelled or Failed may still have produced some Suggestions.
+
+**Research Progress**:
+The observable state of a running Research Job: its current stage, the destination being worked, and the Suggestions found so far. Exists only while the Job runs.
 
 **Suggestion**:
 A single researched attraction/activity candidate, carrying details (hours, cost, duration, area, season/weather fit, rationale).
 _Avoid_: Item, result, hit
+
+**Excursion**:
+An activity done as a day-trip from a Base — the traveller leaves and returns the same day, without booking new accommodation.
+_Avoid_: Day trip, side trip
 
 **Approved Activity List**:
 The human-owned, living list for a Trip. Formed by the traveller approving/editing Suggestions and adding their own items. The sole source for itinerary planning. May change over time, forcing an itinerary Rebuild.

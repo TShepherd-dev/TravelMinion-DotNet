@@ -74,15 +74,53 @@ public sealed class ResearchServiceTests
     }
 
     [Fact]
-    public async Task RunAsync_cancels_the_job_on_cancellation()
+    public async Task RunAsync_cancels_the_job_and_returns_what_was_found()
     {
         var service = BuildService(new FakeResearchSource(_ => throw new OperationCanceledException()));
         var job = ResearchJob.Queue(Guid.NewGuid(), FixedNow);
 
-        var act = () => service.RunAsync(job, BriefWith(new DestinationStop("Tokyo", 1)));
+        var result = await service.RunAsync(job, BriefWith(new DestinationStop("Tokyo", 1)));
 
-        await act.Should().ThrowAsync<OperationCanceledException>();
         job.Status.Should().Be(ResearchJobStatus.Cancelled);
+        result.Job.Should().BeSameAs(job);
+        result.Suggestions.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task RunAsync_keeps_suggestions_found_before_cancellation()
+    {
+        var service = BuildService(new FakeResearchSource(destination =>
+            destination == "Tokyo"
+                ? new[] { Raw("A") }
+                : throw new OperationCanceledException()));
+        var job = ResearchJob.Queue(Guid.NewGuid(), FixedNow);
+
+        var result = await service.RunAsync(job, BriefWith(
+            new DestinationStop("Tokyo", 1),
+            new DestinationStop("Kyoto", 1)));
+
+        job.Status.Should().Be(ResearchJobStatus.Cancelled);
+        result.Suggestions.Should().ContainSingle().Which.Name.Should().Be("A");
+    }
+
+    [Fact]
+    public async Task RunAsync_reports_progress_through_the_reporter()
+    {
+        var reporter = new ResearchProgressReporter();
+        var engine = new ResearchEngine(
+            new FakeResearchEnricher(),
+            new FakeUrlFetcher(),
+            new FakeResearchSource(Array.Empty<RawResult>()),
+            new FakeResearchSource(new[] { Raw("A") }),
+            reporter);
+        var service = new ResearchService(engine, () => FixedNow, reporter);
+        var job = ResearchJob.Queue(Guid.NewGuid(), FixedNow);
+
+        await service.RunAsync(job, BriefWith(new DestinationStop("Tokyo", 1)));
+
+        reporter.Current.Stage.Should().Be(ResearchStage.Completed);
+        reporter.Current.DestinationCount.Should().Be(1);
+        reporter.Current.Suggestions.Should().ContainSingle().Which.Name.Should().Be("A");
     }
 
     [Fact]

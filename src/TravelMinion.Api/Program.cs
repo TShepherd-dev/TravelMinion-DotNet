@@ -23,7 +23,10 @@ if (llmProfile is not null)
     builder.Services.AddTravelMinionLlm(llmProfile);
 }
 
-builder.Services.AddScoped(sp => new ResearchService(sp.GetRequiredService<ResearchEngine>()));
+builder.Services.AddScoped<ResearchProgressReporter>();
+builder.Services.AddScoped(sp => new ResearchService(
+    sp.GetRequiredService<ResearchEngine>(),
+    progress: sp.GetRequiredService<ResearchProgressReporter>()));
 builder.Services.AddScoped<TripService>();
 
 if (llmProfile is not null)

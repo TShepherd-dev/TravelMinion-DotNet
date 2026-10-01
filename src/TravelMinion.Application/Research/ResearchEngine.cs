@@ -17,17 +17,20 @@ public sealed class ResearchEngine
     private readonly IUrlFetcher _urlFetcher;
     private readonly IResearchSource _fallback;
     private readonly IResearchSource? _primary;
+    private readonly IResearchProgressSink? _progress;
 
     public ResearchEngine(
         IResearchEnricher enricher,
         IUrlFetcher urlFetcher,
         IResearchSource fallback,
-        IResearchSource? primary = null)
+        IResearchSource? primary = null,
+        IResearchProgressSink? progress = null)
     {
         _enricher = enricher ?? throw new ArgumentNullException(nameof(enricher));
         _urlFetcher = urlFetcher ?? throw new ArgumentNullException(nameof(urlFetcher));
         _fallback = fallback ?? throw new ArgumentNullException(nameof(fallback));
         _primary = primary;
+        _progress = progress;
     }
 
     /// <summary>Research a single destination.</summary>
@@ -40,6 +43,8 @@ public sealed class ResearchEngine
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(destination);
         ArgumentNullException.ThrowIfNull(interests);
+
+        _progress?.Stage(ResearchStage.SearchingSources);
 
         var customResults = await FetchCustomSourcesAsync(preferredSources, cancellationToken)
             .ConfigureAwait(false);
@@ -61,10 +66,13 @@ public sealed class ResearchEngine
 
         if (rawResults.Count > 0)
         {
+            _progress?.Stage(ResearchStage.ReadingPages);
             rawResults = await EnrichWithContentAsync(rawResults, cancellationToken).ConfigureAwait(false);
         }
 
         rawResults.InsertRange(0, customResults);
+
+        _progress?.Stage(ResearchStage.ExtractingActivities);
 
         return await ShapeAsync(rawResults, interests, days, destination, cancellationToken)
             .ConfigureAwait(false);

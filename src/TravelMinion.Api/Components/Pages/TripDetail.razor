@@ -1,6 +1,8 @@
 @page "/trips/{Id:guid}"
+@implements IDisposable
 @inject TripService Trips
 @inject IResearchRunner Research
+@inject ResearchProgressReporter Progress
 
 <h1>@(_trip?.Name ?? "Trip")</h1>
 
@@ -28,14 +30,44 @@ else
     }
 
     <p>
-        <button @onclick="RunResearchAsync" disabled="@(!Research.IsAvailable || _busy)">
-            @(_busy ? "Working..." : "Run research")
+        <button @onclick="RunResearchAsync" disabled="@(!Research.IsAvailable || IsWorking)">
+            @(IsWorking ? "Working..." : "Run research")
         </button>
         @if (!Research.IsAvailable)
         {
             <span class="muted">No LLM profile configured (set Llm:ApiKey to enable research).</span>
         }
     </p>
+
+    @if (Progress.Current.IsRunning)
+    {
+        <div class="progress">
+            <span class="spinner" aria-hidden="true"></span>
+            <span>@StageText(Progress.Current)</span>
+            <button @onclick="CancelResearch">Cancel</button>
+        </div>
+
+        @if (Progress.Current.Suggestions.Count > 0)
+        {
+            <h3>Found so far (@Progress.Current.Suggestions.Count)</h3>
+            <ul class="preview">
+                @foreach (var suggestion in Progress.Current.Suggestions)
+                {
+                    <li>
+                        <strong>@suggestion.Name</strong>
+                        @if (!string.IsNullOrWhiteSpace(suggestion.Area))
+                        {
+                            <span class="muted">· @suggestion.Area</span>
+                        }
+                        @if (!string.IsNullOrWhiteSpace(suggestion.Rationale))
+                        {
+                            <div class="muted">@suggestion.Rationale</div>
+                        }
+                    </li>
+                }
+            </ul>
+        }
+    }
 
     @if (_message is not null)
     {
@@ -132,7 +164,30 @@ else
     private string? _message;
     private string? _error;
 
+    private bool IsWorking => _busy || Progress.Current.IsRunning;
+
     private static bool IsVisible(Suggestion suggestion) => !suggestion.Discarded;
+
+    protected override void OnInitialized() => Progress.Changed += OnProgressChanged;
+
+    public void Dispose() => Progress.Changed -= OnProgressChanged;
+
+    private void OnProgressChanged() => _ = InvokeAsync(StateHasChanged);
+
+    private static string StageText(ResearchProgressState state)
+    {
+        var where = state.Destination is null
+            ? string.Empty
+            : $" {state.Destination} ({state.DestinationIndex} of {state.DestinationCount})";
+
+        return state.Stage switch
+        {
+            ResearchStage.SearchingSources => $"Searching sources for{where}...",
+            ResearchStage.ReadingPages => $"Reading pages for{where}...",
+            ResearchStage.ExtractingActivities => $"Extracting activities for{where}...",
+            _ => "Working...",
+        };
+    }
 
     protected override async Task OnParametersSetAsync()
     {
@@ -164,27 +219,32 @@ else
 
     private async Task RunResearchAsync()
     {
-        if (_trip is null)
+        if (_trip is null || Progress.Current.IsRunning)
         {
             return;
         }
 
         _busy = true;
         _error = null;
-        _message = "Researching live - querying travel sources and the model. This can take a few minutes per destination.";
+        _message = null;
+
+        var token = Progress.StartRun();
 
         try
         {
-            var result = await Research.RunAsync(_trip);
+            var result = await Research.RunAsync(_trip, token);
             _trip = await Trips.GetAsync(Id);
             _selected.Clear();
             _mustDo.Clear();
             _discard.Clear();
-            _message = result.Merged is { } merged
-                ? merged.AppendedCount == 0
-                    ? $"Nothing new this run - all {merged.DuplicateCount} suggestion(s) were already on your list."
-                    : $"Research added {merged.AppendedCount} new suggestion(s); {merged.DuplicateCount} were already on the list."
-                : $"Research produced {result.Suggestions.Count} suggestion(s).";
+
+            _message = result.Job.Status == ResearchJobStatus.Cancelled
+                ? $"Cancelled - kept {result.Merged?.AppendedCount ?? 0} suggestion(s) found so far."
+                : result.Merged is { } merged
+                    ? merged.AppendedCount == 0
+                        ? $"Nothing new this run - all {merged.DuplicateCount} suggestion(s) were already on your list."
+                        : $"Research added {merged.AppendedCount} new suggestion(s); {merged.DuplicateCount} were already on the list."
+                    : $"Research produced {result.Suggestions.Count} suggestion(s).";
         }
         catch (Exception ex)
         {
@@ -195,6 +255,8 @@ else
             _busy = false;
         }
     }
+
+    private void CancelResearch() => Progress.Cancel();
 
     private async Task DiscardSelectedAsync()
     {
