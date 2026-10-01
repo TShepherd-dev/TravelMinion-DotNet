@@ -7,10 +7,9 @@ public class TripTests
 {
     private static readonly DateTimeOffset Now = new(2027, 4, 1, 9, 0, 0, TimeSpan.Zero);
 
-    private static TripBrief Brief() => TripBrief.Create(
-        new[] { new DestinationStop("Tokyo", 5) },
-        new DateOnly(2027, 4, 1),
-        new DateOnly(2027, 4, 5));
+    private static TripBrief Brief() => TestBrief.FromBases(
+        new[] { new Base("Tokyo", 5) },
+        new DateOnly(2027, 4, 1));
 
     [Fact]
     public void Requires_a_name()

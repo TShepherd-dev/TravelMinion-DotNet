@@ -32,11 +32,14 @@ public sealed class TripRepositoryTests
 
         var brief = TripBrief.Create(
             [
-                new DestinationStop("Tokyo", 3),
-                new DestinationStop("Kyoto", 2, transitFromPrevious: "train 2h15m"),
+                new Country("Japan", 5,
+                [
+                    new Base("Tokyo", 3),
+                    new Base("Kyoto", 2, transitFromPrevious: "train 2h15m"),
+                ]),
             ],
-            new DateOnly(2027, 4, 1),
-            new DateOnly(2027, 4, 5),
+            new Arrival("Tokyo", new DateOnly(2027, 4, 1), new TimeOnly(9, 0)),
+            new Departure("Kyoto", new DateOnly(2027, 4, 5), new TimeOnly(18, 0)),
             interests: ["food", "history"],
             travelStyle: TravelStyle.Packed,
             budget: "moderate",
@@ -106,10 +109,22 @@ public sealed class TripRepositoryTests
             loaded!.Name.Should().Be("Japan Spring");
 
             loaded.Brief.Should().NotBeNull();
-            loaded.Brief!.Destinations.Should().HaveCount(2);
-            loaded.Brief.Destinations[0].Destination.Should().Be("Tokyo");
-            loaded.Brief.Destinations[0].Days.Should().Be(3);
-            loaded.Brief.Destinations[1].TransitFromPrevious.Should().Be("train 2h15m");
+            loaded.Brief!.Countries.Should().ContainSingle();
+            var japan = loaded.Brief.Countries[0];
+            japan.Name.Should().Be("Japan");
+            japan.SpanInDays.Should().Be(5);
+            japan.Bases.Select(b => b.Name).Should().Equal("Tokyo", "Kyoto");
+            japan.Bases[0].Days.Should().Be(3);
+            japan.Bases[1].Days.Should().Be(2);
+            japan.Bases[1].TransitFromPrevious.Should().Be("train 2h15m");
+            loaded.Brief.Arrival.BaseName.Should().Be("Tokyo");
+            loaded.Brief.Arrival.Date.Should().Be(new DateOnly(2027, 4, 1));
+            loaded.Brief.Arrival.Time.Should().Be(new TimeOnly(9, 0));
+            loaded.Brief.Departure.BaseName.Should().Be("Kyoto");
+            loaded.Brief.Departure.Date.Should().Be(new DateOnly(2027, 4, 5));
+            loaded.Brief.Departure.Time.Should().Be(new TimeOnly(18, 0));
+            loaded.Brief.StartDate.Should().Be(new DateOnly(2027, 4, 1));
+            loaded.Brief.EndDate.Should().Be(new DateOnly(2027, 4, 5));
             loaded.Brief.Interests.Should().Equal("food", "history");
             loaded.Brief.PreferredSources.Should().Equal("https://example.com/guide");
             loaded.Brief.TravelStyle.Should().Be(TravelStyle.Packed);
@@ -201,9 +216,8 @@ public sealed class TripRepositoryTests
             var repository = new TripRepository(context);
 
             var trip = new Trip(Guid.NewGuid(), "Repeat research");
-            trip.CaptureBrief(TripBrief.Create(
-                [new DestinationStop("Tokyo", 1)],
-                new DateOnly(2027, 4, 1),
+            trip.CaptureBrief(TestBrief.FromBases(
+                [new Base("Tokyo", 1)],
                 new DateOnly(2027, 4, 1),
                 interests: ["food"]));
             await repository.AddAsync(trip);
@@ -252,9 +266,8 @@ public sealed class TripRepositoryTests
             var repository = new TripRepository(context);
 
             var trip = new Trip(Guid.NewGuid(), "Discard round-trip");
-            trip.CaptureBrief(TripBrief.Create(
-                [new DestinationStop("Tokyo", 1)],
-                new DateOnly(2027, 4, 1),
+            trip.CaptureBrief(TestBrief.FromBases(
+                [new Base("Tokyo", 1)],
                 new DateOnly(2027, 4, 1),
                 interests: ["food"]));
 

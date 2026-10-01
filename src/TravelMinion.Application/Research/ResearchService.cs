@@ -37,7 +37,7 @@ public sealed class ResearchService
     }
 
     /// <summary>
-    /// Runs research for every destination in the brief, driving the supplied
+    /// Runs research for every base in the brief, driving the supplied
     /// job from Queued through Running to Succeeded, or to Failed/Cancelled.
     /// A cancelled run returns the Suggestions found so far rather than throwing,
     /// so the caller can keep them; a failed run throws and keeps nothing.
@@ -51,24 +51,24 @@ public sealed class ResearchService
         ArgumentNullException.ThrowIfNull(brief);
 
         job.Start(_clock());
-        _progress?.Begin(brief.Destinations.Count);
+        _progress?.Begin(brief.Bases.Count);
 
         var suggestions = new List<Suggestion>();
         try
         {
-            for (var index = 0; index < brief.Destinations.Count; index++)
+            for (var index = 0; index < brief.Bases.Count; index++)
             {
-                var stop = brief.Destinations[index];
-                _progress?.SetDestination(stop.Destination, index + 1);
+                var @base = brief.Bases[index];
+                _progress?.SetDestination(@base.Name, index + 1);
 
                 var found = await _engine.ResearchDestinationAsync(
-                    stop.Destination,
+                    @base.Name,
                     brief.Interests,
-                    stop.Days,
+                    @base.Days,
                     brief.PreferredSources,
                     cancellationToken).ConfigureAwait(false);
 
-                job.RecordProgress(stop.Destination, found.Count);
+                job.RecordProgress(@base.Name, found.Count);
                 suggestions.AddRange(found);
                 _progress?.AddSuggestions(found);
             }

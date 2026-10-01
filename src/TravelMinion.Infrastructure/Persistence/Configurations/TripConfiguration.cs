@@ -16,20 +16,39 @@ internal sealed class TripConfiguration : IEntityTypeConfiguration<Trip>
         builder.OwnsOne(t => t.Brief, brief =>
         {
             brief.ToTable("TripBriefs");
-            brief.Property(b => b.StartDate);
-            brief.Property(b => b.EndDate);
+            brief.Ignore(b => b.Bases);
             brief.Property(b => b.TravelStyle).HasConversion<string>().HasMaxLength(20);
             brief.Property(b => b.Budget).HasMaxLength(200);
             brief.Property(b => b.GroupSize);
             brief.Property(b => b.Mobility).HasMaxLength(400);
 
-            brief.OwnsMany(b => b.Destinations, destination =>
+            brief.OwnsOne(b => b.Arrival, arrival =>
             {
-                destination.ToTable("DestinationStops");
-                destination.Property(d => d.Destination).IsRequired().HasMaxLength(200);
-                destination.Property(d => d.Days);
-                destination.Property(d => d.Order);
-                destination.Property(d => d.TransitFromPrevious).HasMaxLength(200);
+                arrival.Property(a => a.BaseName).IsRequired().HasMaxLength(200);
+                arrival.Property(a => a.Date);
+                arrival.Property(a => a.Time);
+            });
+
+            brief.OwnsOne(b => b.Departure, departure =>
+            {
+                departure.Property(d => d.BaseName).IsRequired().HasMaxLength(200);
+                departure.Property(d => d.Date);
+                departure.Property(d => d.Time);
+            });
+
+            brief.OwnsMany(b => b.Countries, country =>
+            {
+                country.ToTable("Countries");
+                country.Property(c => c.Name).IsRequired().HasMaxLength(200);
+                country.Property(c => c.SpanInDays);
+
+                country.OwnsMany(c => c.Bases, @base =>
+                {
+                    @base.ToTable("Bases");
+                    @base.Property(b => b.Name).IsRequired().HasMaxLength(200);
+                    @base.Property(b => b.Days);
+                    @base.Property(b => b.TransitFromPrevious).HasMaxLength(200);
+                });
             });
 
             brief.PrimitiveCollection(b => b.Interests);

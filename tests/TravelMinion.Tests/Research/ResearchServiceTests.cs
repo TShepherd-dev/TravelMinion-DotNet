@@ -25,11 +25,8 @@ public sealed class ResearchServiceTests
         return new ResearchService(engine, () => FixedNow);
     }
 
-    private static TripBrief BriefWith(params DestinationStop[] stops)
-    {
-        var start = new DateOnly(2027, 4, 1);
-        return TripBrief.Create(stops, start, start.AddDays(stops.Sum(stop => stop.Days) - 1));
-    }
+    private static TripBrief BriefWith(params Base[] bases)
+        => TestBrief.FromBases(bases, new DateOnly(2027, 4, 1));
 
     [Fact]
     public async Task RunAsync_drives_a_queued_job_to_succeeded()
@@ -37,7 +34,7 @@ public sealed class ResearchServiceTests
         var service = BuildService(new[] { Raw("A"), Raw("B") });
         var job = ResearchJob.Queue(Guid.NewGuid(), FixedNow);
 
-        var result = await service.RunAsync(job, BriefWith(new DestinationStop("Tokyo", 1)));
+        var result = await service.RunAsync(job, BriefWith(new Base("Tokyo", 1)));
 
         job.Status.Should().Be(ResearchJobStatus.Succeeded);
         job.StartedAt.Should().Be(FixedNow);
@@ -53,8 +50,8 @@ public sealed class ResearchServiceTests
         var job = ResearchJob.Queue(Guid.NewGuid(), FixedNow);
 
         await service.RunAsync(job, BriefWith(
-            new DestinationStop("Tokyo", 1),
-            new DestinationStop("Kyoto", 1)));
+            new Base("Tokyo", 1),
+            new Base("Kyoto", 1)));
 
         job.Progress.Select(progress => progress.Destination).Should().Equal("Tokyo", "Kyoto");
         job.Progress.Should().OnlyContain(progress => progress.Completed && progress.SuggestionsFound == 1);
@@ -66,7 +63,7 @@ public sealed class ResearchServiceTests
         var service = BuildService(new FakeResearchSource(_ => throw new HttpRequestException("boom")));
         var job = ResearchJob.Queue(Guid.NewGuid(), FixedNow);
 
-        var act = () => service.RunAsync(job, BriefWith(new DestinationStop("Tokyo", 1)));
+        var act = () => service.RunAsync(job, BriefWith(new Base("Tokyo", 1)));
 
         await act.Should().ThrowAsync<HttpRequestException>();
         job.Status.Should().Be(ResearchJobStatus.Failed);
@@ -79,7 +76,7 @@ public sealed class ResearchServiceTests
         var service = BuildService(new FakeResearchSource(_ => throw new OperationCanceledException()));
         var job = ResearchJob.Queue(Guid.NewGuid(), FixedNow);
 
-        var result = await service.RunAsync(job, BriefWith(new DestinationStop("Tokyo", 1)));
+        var result = await service.RunAsync(job, BriefWith(new Base("Tokyo", 1)));
 
         job.Status.Should().Be(ResearchJobStatus.Cancelled);
         result.Job.Should().BeSameAs(job);
@@ -96,8 +93,8 @@ public sealed class ResearchServiceTests
         var job = ResearchJob.Queue(Guid.NewGuid(), FixedNow);
 
         var result = await service.RunAsync(job, BriefWith(
-            new DestinationStop("Tokyo", 1),
-            new DestinationStop("Kyoto", 1)));
+            new Base("Tokyo", 1),
+            new Base("Kyoto", 1)));
 
         job.Status.Should().Be(ResearchJobStatus.Cancelled);
         result.Suggestions.Should().ContainSingle().Which.Name.Should().Be("A");
@@ -116,7 +113,7 @@ public sealed class ResearchServiceTests
         var service = new ResearchService(engine, () => FixedNow, reporter);
         var job = ResearchJob.Queue(Guid.NewGuid(), FixedNow);
 
-        await service.RunAsync(job, BriefWith(new DestinationStop("Tokyo", 1)));
+        await service.RunAsync(job, BriefWith(new Base("Tokyo", 1)));
 
         reporter.Current.Stage.Should().Be(ResearchStage.Completed);
         reporter.Current.DestinationCount.Should().Be(1);
@@ -128,7 +125,7 @@ public sealed class ResearchServiceTests
     {
         var service = BuildService(Array.Empty<RawResult>());
 
-        var act = () => service.RunAsync(null!, BriefWith(new DestinationStop("Tokyo", 1)));
+        var act = () => service.RunAsync(null!, BriefWith(new Base("Tokyo", 1)));
 
         await act.Should().ThrowAsync<ArgumentNullException>();
     }

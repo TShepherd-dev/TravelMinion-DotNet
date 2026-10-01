@@ -12,9 +12,8 @@ public sealed class ResearchRunnerTests
     private static Trip TripWithBrief()
     {
         var trip = new Trip(Guid.NewGuid(), "Japan Spring");
-        trip.CaptureBrief(TripBrief.Create(
-            new[] { new DestinationStop("Tokyo", 1) },
-            new DateOnly(2027, 4, 1),
+        trip.CaptureBrief(TestBrief.FromBases(
+            new[] { new Base("Tokyo", 1) },
             new DateOnly(2027, 4, 1),
             interests: new[] { "food" }));
         return trip;
@@ -61,10 +60,9 @@ public sealed class ResearchRunnerTests
     {
         var repository = new FakeTripRepository();
         var trip = new Trip(Guid.NewGuid(), "Japan Spring");
-        trip.CaptureBrief(TripBrief.Create(
-            new[] { new DestinationStop("Tokyo", 1), new DestinationStop("Kyoto", 1) },
+        trip.CaptureBrief(TestBrief.FromBases(
+            new[] { new Base("Tokyo", 1), new Base("Kyoto", 1) },
             new DateOnly(2027, 4, 1),
-            new DateOnly(2027, 4, 2),
             interests: new[] { "food" }));
 
         var engine = new ResearchEngine(

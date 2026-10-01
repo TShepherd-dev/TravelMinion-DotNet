@@ -25,51 +25,49 @@ public sealed partial class ItineraryPlanner
         var days = new List<ItineraryDay>();
         var currentDate = _brief.StartDate;
 
-        var orderedStops = _brief.Destinations
-            .OrderBy(stop => stop.Order ?? int.MaxValue)
-            .ToList();
+        var bases = _brief.Bases;
 
-        for (var index = 0; index < orderedStops.Count; index++)
+        for (var index = 0; index < bases.Count; index++)
         {
-            var stop = orderedStops[index];
-            var destination = stop.Destination;
+            var @base = bases[index];
+            var baseName = @base.Name;
 
             if (index > 0)
             {
-                var previous = orderedStops[index - 1].Destination;
-                var transit = stop.TransitFromPrevious;
+                var previous = bases[index - 1].Name;
+                var transit = @base.TransitFromPrevious;
                 var transitMinutes = TransitDurationParser.ToMinutes(transit);
                 var (mode, duration) = SplitTransit(transit);
-                var leg = new TravelLeg(previous, destination, mode, duration);
+                var leg = new TravelLeg(previous, baseName, mode, duration);
 
                 if (transitMinutes >= PlannerConstants.LongHaulThreshold)
                 {
                     days.Add(new FreeDay(
                         currentDate,
-                        destination,
+                        baseName,
                         $"Recovery day after long travel ({transit ?? "long haul"})"));
                 }
                 else
                 {
-                    days.Add(new TravelDay(currentDate, destination, leg, CreateAfternoonActivity(destination)));
+                    days.Add(new TravelDay(currentDate, baseName, leg, CreateAfternoonActivity(baseName)));
                 }
 
                 currentDate = currentDate.AddDays(1);
             }
 
-            var destinationActivities = _activities.ByDestination(destination).ToList();
-            if (destinationActivities.Count == 0)
+            var baseActivities = _activities.ByDestination(baseName).ToList();
+            if (baseActivities.Count == 0)
             {
-                for (var day = 0; day < stop.Days; day++)
+                for (var day = 0; day < @base.Days; day++)
                 {
-                    days.Add(new FreeDay(currentDate, destination, "No planned activities"));
+                    days.Add(new FreeDay(currentDate, baseName, "No planned activities"));
                     currentDate = currentDate.AddDays(1);
                 }
 
                 continue;
             }
 
-            var activityDays = PlanDestinationDays(destinationActivities, stop.Days, currentDate, destination);
+            var activityDays = PlanDestinationDays(baseActivities, @base.Days, currentDate, baseName);
             days.AddRange(activityDays);
             currentDate = currentDate.AddDays(activityDays.Count);
         }
@@ -81,7 +79,7 @@ public sealed partial class ItineraryPlanner
         IReadOnlyList<ApprovedActivity> activities,
         int numDays,
         DateOnly startDate,
-        string destination)
+        string baseName)
     {
         var days = new List<ItineraryDay>();
         if (activities.Count == 0 || numDays <= 0)
@@ -98,7 +96,7 @@ public sealed partial class ItineraryPlanner
 
             if (_targetDensity == 0)
             {
-                days.Add(new FreeDay(currentDate, destination, "Rest day"));
+                days.Add(new FreeDay(currentDate, baseName, "Rest day"));
                 continue;
             }
 
@@ -135,8 +133,8 @@ public sealed partial class ItineraryPlanner
             }
 
             days.Add(blocks.Count > 0
-                ? new ActivityDay(currentDate, destination, blocks)
-                : new FreeDay(currentDate, destination, "No activities scheduled"));
+                ? new ActivityDay(currentDate, baseName, blocks)
+                : new FreeDay(currentDate, baseName, "No activities scheduled"));
         }
 
         return days;
@@ -210,12 +208,12 @@ public sealed partial class ItineraryPlanner
         return groups.SelectMany(group => group).ToList();
     }
 
-    private static TimeBlock CreateAfternoonActivity(string destination)
+    private static TimeBlock CreateAfternoonActivity(string baseName)
         => new(
             new TimeOnly(15, 0),
             new TimeOnly(17, 0),
-            $"Explore {destination}",
-            destination,
+            $"Explore {baseName}",
+            baseName,
             "2 hours");
 
     private static (string? Mode, string? Duration) SplitTransit(string? transit)

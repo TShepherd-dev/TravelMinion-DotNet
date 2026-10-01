@@ -15,12 +15,6 @@ public class ResearchEngineTests
         string url = "https://example.com/x")
         => new(title, url, "snippet", source);
 
-    private static TripBrief Brief(params DestinationStop[] stops)
-    {
-        var start = new DateOnly(2027, 4, 1);
-        return TripBrief.Create(stops, start, start.AddDays(stops.Sum(stop => stop.Days) - 1));
-    }
-
     private static ResearchEngine Engine(
         FakeResearchEnricher enricher,
         IUrlFetcher fetcher,

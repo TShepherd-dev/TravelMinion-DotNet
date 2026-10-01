@@ -20,10 +20,10 @@ else
             @string.Join(", ", brief.Interests)
         </p>
         <p>
-            @foreach (var stop in brief.Destinations)
+            @foreach (var baseItem in brief.Bases)
             {
                 <span class="tag">
-                    @stop.Destination · @stop.Days day(s)@(stop.TransitFromPrevious is null ? "" : $" · from prev: {stop.TransitFromPrevious}")
+                    @baseItem.Name · @baseItem.Days day(s)@(baseItem.TransitFromPrevious is null ? "" : $" · from prev: {baseItem.TransitFromPrevious}")
                 </span>
             }
         </p>

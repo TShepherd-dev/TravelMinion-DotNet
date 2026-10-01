@@ -74,7 +74,7 @@ public class InterviewServiceTests
     {
         var brief = InterviewService.Finalize(new TripBriefDraft(), Today);
 
-        brief.Destinations.Single().Destination.Should().Be("TBD");
+        brief.Bases.Single().Name.Should().Be("TBD");
         brief.StartDate.Should().Be(Today.AddDays(180));
         brief.EndDate.Should().Be(Today.AddDays(187));
         brief.Interests.Should().Equal(DomainDefaults.Interests);
@@ -88,7 +88,7 @@ public class InterviewServiceTests
 
         var brief = InterviewService.Finalize(draft, Today);
 
-        brief.Destinations.Single().Destination.Should().Be("Tokyo");
+        brief.Bases.Single().Name.Should().Be("Tokyo");
         brief.StartDate.Should().Be(new DateOnly(2027, 4, 1));
         brief.EndDate.Should().Be(new DateOnly(2027, 4, 5));
         brief.TravelStyle.Should().Be(TravelStyle.Packed);

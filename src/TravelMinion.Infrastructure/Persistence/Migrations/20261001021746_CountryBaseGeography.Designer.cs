@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using TravelMinion.Infrastructure.Persistence;
 
@@ -11,9 +12,11 @@ using TravelMinion.Infrastructure.Persistence;
 namespace TravelMinion.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(TravelMinionDbContext))]
-    partial class TravelMinionDbContextModelSnapshot : ModelSnapshot
+    [Migration("20261001021746_CountryBaseGeography")]
+    partial class CountryBaseGeography
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder

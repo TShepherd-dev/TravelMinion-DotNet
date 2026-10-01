@@ -9,14 +9,10 @@ public class ItineraryPlannerTests
     private static readonly DateOnly Start = new(2027, 4, 1);
 
     private static TripBrief Brief(
-        IEnumerable<DestinationStop> stops,
+        IEnumerable<Base> bases,
         DateOnly? end = null,
         TravelStyle style = TravelStyle.Casual) =>
-        TripBrief.Create(
-            stops,
-            Start,
-            end ?? Start.AddDays(4),
-            travelStyle: style);
+        TestBrief.FromBases(bases, Start, end, style);
 
     private static ApprovedActivity Activity(
         string name,
@@ -30,7 +26,7 @@ public class ItineraryPlannerTests
     [Fact]
     public void Splits_activities_across_days_by_density()
     {
-        var brief = Brief(new[] { new DestinationStop("Tokyo", 2) }, Start.AddDays(1));
+        var brief = Brief(new[] { new Base("Tokyo", 2) }, Start.AddDays(1));
         var activities = new ApprovedActivityList(new[]
         {
             Activity("A"), Activity("B"), Activity("C"),
@@ -46,7 +42,7 @@ public class ItineraryPlannerTests
     [Fact]
     public void Nothing_style_produces_only_free_days()
     {
-        var brief = Brief(new[] { new DestinationStop("Tokyo", 2) }, Start.AddDays(1), TravelStyle.Nothing);
+        var brief = Brief(new[] { new Base("Tokyo", 2) }, Start.AddDays(1), TravelStyle.Nothing);
         var activities = new ApprovedActivityList(new[] { Activity("A") });
 
         var itinerary = new ItineraryPlanner(brief, activities).Plan();
@@ -59,7 +55,7 @@ public class ItineraryPlannerTests
     [Fact]
     public void Destination_without_activities_gets_free_days()
     {
-        var brief = Brief(new[] { new DestinationStop("Tokyo", 3) }, Start.AddDays(2));
+        var brief = Brief(new[] { new Base("Tokyo", 3) }, Start.AddDays(2));
         var activities = new ApprovedActivityList();
 
         var itinerary = new ItineraryPlanner(brief, activities).Plan();
@@ -73,8 +69,8 @@ public class ItineraryPlannerTests
     {
         var brief = Brief(new[]
         {
-            new DestinationStop("Tokyo", 1, order: 0),
-            new DestinationStop("Kyoto", 1, order: 1, transitFromPrevious: "train 2h15m"),
+            new Base("Tokyo", 1),
+            new Base("Kyoto", 1, transitFromPrevious: "train 2h15m"),
         }, Start.AddDays(1));
         var activities = new ApprovedActivityList(new[] { Activity("Temple", "Kyoto") });
 
@@ -95,8 +91,8 @@ public class ItineraryPlannerTests
     {
         var brief = Brief(new[]
         {
-            new DestinationStop("Tokyo", 1, order: 0),
-            new DestinationStop("Seoul", 1, order: 1, transitFromPrevious: "flight 7h"),
+            new Base("Tokyo", 1),
+            new Base("Seoul", 1, transitFromPrevious: "flight 7h"),
         }, Start.AddDays(1));
         var activities = new ApprovedActivityList(new[] { Activity("Palace", "Seoul") });
 
@@ -111,7 +107,7 @@ public class ItineraryPlannerTests
     [Fact]
     public void Respects_opening_hours_by_pushing_start_to_opening()
     {
-        var brief = Brief(new[] { new DestinationStop("Tokyo", 1) }, Start);
+        var brief = Brief(new[] { new Base("Tokyo", 1) }, Start);
         var activities = new ApprovedActivityList(new[]
         {
             Activity("Late Opener", openingHours: "11am-6pm"),
@@ -127,7 +123,7 @@ public class ItineraryPlannerTests
     [Fact]
     public void Assigns_an_indoor_fallback_to_weather_exposed_activities()
     {
-        var brief = Brief(new[] { new DestinationStop("Tokyo", 1) }, Start);
+        var brief = Brief(new[] { new Base("Tokyo", 1) }, Start);
         var activities = new ApprovedActivityList(new[] { Activity("Sunny Beach") });
 
         var itinerary = new ItineraryPlanner(brief, activities).Plan();
@@ -139,7 +135,7 @@ public class ItineraryPlannerTests
     [Fact]
     public void Schedules_must_dos_before_fillers_within_a_destination()
     {
-        var brief = Brief(new[] { new DestinationStop("Tokyo", 1) }, Start);
+        var brief = Brief(new[] { new Base("Tokyo", 1) }, Start);
         var activities = new ApprovedActivityList(new[]
         {
             Activity("Filler", optional: true),

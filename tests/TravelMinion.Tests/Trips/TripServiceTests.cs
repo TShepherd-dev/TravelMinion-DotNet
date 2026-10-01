@@ -7,10 +7,9 @@ namespace TravelMinion.Tests.Trips;
 public sealed class TripServiceTests
 {
     private static TripBrief Brief()
-        => TripBrief.Create(
-            new[] { new DestinationStop("Tokyo", 3), new DestinationStop("Kyoto", 2) },
+        => TestBrief.FromBases(
+            new[] { new Base("Tokyo", 3), new Base("Kyoto", 2) },
             new DateOnly(2027, 4, 1),
-            new DateOnly(2027, 4, 5),
             interests: new[] { "food", "history" });
 
     private static Suggestion Suggestion(string name, string destination)

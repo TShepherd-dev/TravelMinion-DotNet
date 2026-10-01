@@ -42,9 +42,9 @@ else
                         }
                         else
                         {
-                            @foreach (var stop in trip.Brief.Destinations)
+                            @foreach (var baseItem in trip.Brief.Bases)
                             {
-                                <span class="tag">@stop.Destination (@stop.Days d)</span>
+                                <span class="tag">@baseItem.Name (@baseItem.Days d)</span>
                             }
                         }
                     </td>
@@ -152,24 +152,30 @@ else
         _error = null;
         try
         {
-            var stops = _destinations
-                .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-                .Select((destination, index) => new DestinationStop(destination, 1, index))
-                .ToArray();
+            var names = _destinations
+                .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
 
-            if (stops.Length == 0)
+            if (names.Length == 0)
             {
                 _error = "Add at least one destination.";
                 return;
             }
 
+            var countries = FlatGeography.ToCountries(names.Select(name => (name, 1)));
+
             var interests = _interests
                 .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
 
-            var brief = TripBrief.Create(
-                stops,
-                _startDate,
+            var arrival = new Arrival(countries[0].FirstBase.Name, _startDate, TimeOnly.MinValue);
+            var departure = new Departure(
+                countries[^1].LastBase.Name,
                 _startDate.AddDays(Math.Max(1, _days) - 1),
+                TimeOnly.MinValue);
+
+            var brief = TripBrief.Create(
+                countries,
+                arrival,
+                departure,
                 interests: interests,
                 travelStyle: _travelStyle);
 

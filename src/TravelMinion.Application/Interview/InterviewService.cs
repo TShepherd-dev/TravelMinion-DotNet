@@ -96,17 +96,19 @@ public sealed class InterviewService
             ? draft.Destinations
             : new[] { new DestinationDraft("TBD") };
 
-        var stops = destinations
-            .Select((destination, index) => new DestinationStop(destination.Destination, destination.Days ?? 1, index))
-            .ToList();
+        var countries = FlatGeography.ToCountries(
+            destinations.Select(destination => (destination.Destination, destination.Days ?? 1)));
 
         var startDate = draft.StartDate ?? today.AddDays(180);
         var endDate = draft.EndDate ?? startDate.AddDays(7);
 
+        var arrival = new Arrival(countries[0].FirstBase.Name, startDate, TimeOnly.MinValue);
+        var departure = new Departure(countries[^1].LastBase.Name, endDate, TimeOnly.MinValue);
+
         return TripBrief.Create(
-            stops,
-            startDate,
-            endDate,
+            countries,
+            arrival,
+            departure,
             draft.Interests.Count > 0 ? draft.Interests : null,
             draft.TravelStyle ?? TravelStyle.Casual,
             draft.Budget,

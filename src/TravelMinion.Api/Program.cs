@@ -89,10 +89,17 @@ if (app.Environment.IsDevelopment())
             ResearchService research,
             CancellationToken cancellationToken) =>
         {
-            var brief = TripBrief.Create(
-                new[] { new DestinationStop(request.Destination, request.Days) },
-                request.StartDate,
+            var countries = FlatGeography.ToCountries(new[] { (request.Destination, request.Days) });
+            var arrival = new Arrival(countries[0].FirstBase.Name, request.StartDate, TimeOnly.MinValue);
+            var departure = new Departure(
+                countries[^1].LastBase.Name,
                 request.StartDate.AddDays(request.Days - 1),
+                TimeOnly.MinValue);
+
+            var brief = TripBrief.Create(
+                countries,
+                arrival,
+                departure,
                 interests: request.Interests);
 
             var job = ResearchJob.Queue(Guid.NewGuid(), DateTimeOffset.UtcNow);
