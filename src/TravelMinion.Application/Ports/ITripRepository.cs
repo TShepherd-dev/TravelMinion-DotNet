@@ -21,6 +21,9 @@ public interface ITripRepository
     /// <summary>Stages an existing Trip (and its graph) for update.</summary>
     void Update(Trip trip);
 
+    /// <summary>Stages an existing Trip (and its graph) for deletion.</summary>
+    void Remove(Trip trip);
+
     /// <summary>Persists staged changes.</summary>
     Task SaveChangesAsync(CancellationToken cancellationToken = default);
 }

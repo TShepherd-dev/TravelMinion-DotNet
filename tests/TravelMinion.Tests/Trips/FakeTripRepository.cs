@@ -29,6 +29,12 @@ internal sealed class FakeTripRepository : ITripRepository
         _trips[trip.Id] = trip;
     }
 
+    public void Remove(Trip trip)
+    {
+        ArgumentNullException.ThrowIfNull(trip);
+        _trips.Remove(trip.Id);
+    }
+
     public Task SaveChangesAsync(CancellationToken cancellationToken = default)
     {
         SaveCount++;

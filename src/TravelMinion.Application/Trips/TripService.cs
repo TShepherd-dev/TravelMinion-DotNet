@@ -47,6 +47,14 @@ public sealed class TripService
         return trip;
     }
 
+    /// <summary>Deletes a Trip and everything it owns.</summary>
+    public async Task DeleteAsync(Guid tripId, CancellationToken cancellationToken = default)
+    {
+        var trip = await LoadAsync(tripId, cancellationToken).ConfigureAwait(false);
+        _repository.Remove(trip);
+        await _repository.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+    }
+
     /// <summary>
     /// Builds the Approved Activity List from the selected Suggestions. Indices are
     /// positions in <see cref="Trip.Suggestions"/>; those in <paramref name="mustDoIndices"/>

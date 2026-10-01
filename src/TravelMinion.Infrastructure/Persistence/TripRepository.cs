@@ -63,6 +63,12 @@ internal sealed class TripRepository : ITripRepository
         }
     }
 
+    public void Remove(Trip trip)
+    {
+        ArgumentNullException.ThrowIfNull(trip);
+        _context.Trips.Remove(trip);
+    }
+
     public Task SaveChangesAsync(CancellationToken cancellationToken = default)
         => _context.SaveChangesAsync(cancellationToken);
 }

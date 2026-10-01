@@ -97,6 +97,29 @@ public sealed class TripServiceTests
     }
 
     [Fact]
+    public async Task DeleteAsync_removes_the_trip_and_saves()
+    {
+        var repository = new FakeTripRepository();
+        var service = new TripService(repository);
+        var trip = await service.CreateAsync("Japan Spring", Brief());
+
+        await service.DeleteAsync(trip.Id);
+
+        (await service.GetAsync(trip.Id)).Should().BeNull();
+        repository.SaveCount.Should().Be(2);
+    }
+
+    [Fact]
+    public async Task DeleteAsync_throws_for_an_unknown_trip()
+    {
+        var service = new TripService(new FakeTripRepository());
+
+        var act = () => service.DeleteAsync(Guid.NewGuid());
+
+        await act.Should().ThrowAsync<InvalidOperationException>();
+    }
+
+    [Fact]
     public async Task DiscardSuggestionsAsync_marks_selected_suggestions_and_saves()
     {
         var repository = new FakeTripRepository();

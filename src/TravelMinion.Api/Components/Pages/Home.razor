@@ -1,8 +1,14 @@
 @page "/"
 @inject TripService Trips
 @inject NavigationManager Navigation
+@inject IJSRuntime JS
 
 <h1>Trips</h1>
+
+@if (_listError is not null)
+{
+    <p class="error">@_listError</p>
+}
 
 @if (_loading)
 {
@@ -20,6 +26,7 @@ else
                 <th>Name</th>
                 <th>Dates</th>
                 <th>Destinations</th>
+                <th></th>
             </tr>
         </thead>
         <tbody>
@@ -40,6 +47,9 @@ else
                                 <span class="tag">@stop.Destination (@stop.Days d)</span>
                             }
                         }
+                    </td>
+                    <td>
+                        <button @onclick="() => DeleteAsync(trip)" disabled="@_busy">Delete</button>
                     </td>
                 </tr>
             }
@@ -87,6 +97,8 @@ else
 @code {
     private IReadOnlyList<Trip> _trips = Array.Empty<Trip>();
     private bool _loading = true;
+    private bool _busy;
+    private string? _listError;
     private string _name = "My trip";
     private string _destinations = "Tokyo, Kyoto";
     private DateOnly _startDate = DateOnly.FromDateTime(DateTime.Today.AddMonths(6));
@@ -99,6 +111,40 @@ else
     {
         _trips = await Trips.ListAsync();
         _loading = false;
+    }
+
+    private async Task DeleteAsync(Trip trip)
+    {
+        if (_busy)
+        {
+            return;
+        }
+
+        var confirmed = await JS.InvokeAsync<bool>(
+            "confirm",
+            $"Delete \"{trip.Name}\"? This cannot be undone.");
+
+        if (!confirmed)
+        {
+            return;
+        }
+
+        _busy = true;
+        _listError = null;
+
+        try
+        {
+            await Trips.DeleteAsync(trip.Id);
+            _trips = await Trips.ListAsync();
+        }
+        catch (Exception ex)
+        {
+            _listError = ex.Message;
+        }
+        finally
+        {
+            _busy = false;
+        }
     }
 
     private async Task CreateAsync()

@@ -285,6 +285,29 @@ public sealed class TripRepositoryTests
         }
     }
 
+    [Fact]
+    public async Task Deleting_a_trip_removes_its_whole_graph()
+    {
+        await using var context = CreateContext();
+        {
+            var repository = new TripRepository(context);
+            var trip = BuildTrip();
+
+            await repository.AddAsync(trip);
+            await repository.SaveChangesAsync();
+            context.ChangeTracker.Clear();
+
+            var loaded = await repository.GetAsync(trip.Id);
+            repository.Remove(loaded!);
+            await repository.SaveChangesAsync();
+            context.ChangeTracker.Clear();
+
+            (await repository.GetAsync(trip.Id)).Should().BeNull();
+            (await repository.ListAsync()).Should().BeEmpty();
+            context.ResearchJobs.Should().BeEmpty();
+        }
+    }
+
     private static ResearchEngine FakeEngine(IReadOnlyList<string> titles)
     {
         var results = titles
